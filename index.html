@@ -31,7 +31,7 @@
 <div id="wrap"><canvas id="game"></canvas></div>
 <script>
 "use strict";
-const MUSIC_FILES = ["music/track0.mp3","music/track1.mp3","music/track2.mp3","music/track3.mp3","music/track4.mp3"];
+const MUSIC_FILES = ["music/track0.mp3","music/track1.mp3","music/track2.mp3","music/track3.mp3","music/track4.mp3","music/track5.mp3"];
 /* ============================================================
    OBŁUŻE '91 — bijatyka osiedlowa
    Gdynia, blokowisko, rok 1991.
@@ -261,7 +261,7 @@ function musicTick() {
   if (i%8===4) noiseHit(0.09, 0.14, 350);            // snare-ish thud
   musicStep++;
 }
-let chipFallback = false, musicBufs = {0:null, 1:null, 2:null, 3:null, 4:null}, musicNode = null, musicGain = null, musicDecoding = false, musicLv = -1;
+let chipFallback = false, musicBufs = {0:null, 1:null, 2:null, 3:null, 4:null, 5:null}, musicNode = null, musicGain = null, musicDecoding = false, musicLv = -1;
 function startChip() {
   if (musicTimer) clearInterval(musicTimer);
   const bpmMs = musicMode==="boss" ? 110 : 135;
@@ -271,6 +271,7 @@ function currentTrack() {
   const st = (typeof game !== "undefined") ? game.state : "splash";
   if (st==="splash" || st==="title" || st==="intro") return { i:3, src:MUSIC_FILES[3] };
   const lv = (typeof game !== "undefined") ? game.lv : 0;
+  if (lv === 4) return { i:5, src:MUSIC_FILES[5] };
   if (lv === 3) return { i:4, src:MUSIC_FILES[4] };
   if (lv === 2) return { i:2, src:MUSIC_FILES[2] };
   if (lv === 1) return { i:1, src:MUSIC_FILES[1] };
@@ -1356,6 +1357,16 @@ function drawSpark(c, s, camX) {
     c.beginPath(); c.moveTo(0,-r); c.lineTo(r*0.24,0); c.lineTo(0,r*0.36); c.lineTo(-r*0.24,0); c.closePath(); c.fill(); }
   c.restore();
 }
+const tracers = [];   // smuga pocisku z pistoletu
+function spawnTracer(x1, y, x2) { tracers.push({ x1, x2, y, t:0, life:7 }); }
+function drawTracer(c, tr, camX) {
+  const p = tr.t/tr.life;
+  c.strokeStyle = p<0.4 ? "rgba(255,244,200,0.95)" : "rgba(232,193,90," + (0.9-p*0.9) + ")";
+  c.lineWidth = p<0.4 ? 1.6 : 1;
+  c.beginPath(); c.moveTo(tr.x1-camX, tr.y); c.lineTo(tr.x2-camX, tr.y); c.stroke();
+  const bx = lerp(tr.x1, tr.x2, Math.min(1, p*2.4));         // lecący pocisk
+  if (p < 0.5) { pxr(c, bx-camX-1.5, tr.y-1, 3, 2, "#fff4c8"); }
+}
 function spawnDust(x, y, n=3) {
   for (let i=0;i<n;i++) gibs.push({x:x+rnd(-5,5), y:y-2, vx:rnd(-0.7,0.7), vy:rnd(-1.3,-0.3), col:"#a8a294", life:irnd(10,20), sz:irnd(1,3)});
 }
@@ -1587,18 +1598,21 @@ class Player extends Fighter {
         const cfg = WEAPON_CFG[this.weapon.kind];
         if (cfg.ranged) {                              // pistolet — strzał po linii
           SFX.shot(); game.shake = 3;
-          spawnSpark(this.x + this.face*14, this.feetY-16, false);
+          const muzX = this.x + this.face*15, muzY = this.feetY-16;
+          spawnSpark(muzX, muzY, false);
           let best=null, bd=1e9;
           for (const e of game.enemies) {
             if (e.dead || e.state==="down"||e.state==="launch"||e.state==="thrown") continue;
             const dx = e.x - this.x;
             if (dx*this.face>2 && Math.abs(dx)<cfg.reach && Math.abs(e.y-this.y)<cfg.dyTol && Math.abs(dx)<bd) { best=e; bd=Math.abs(dx); }
           }
-          if (best) best.takeHit(best.isBoss ? 18 : cfg.dmg, this.face*cfg.kb, true);
+          let hitX = this.x + this.face*cfg.reach;     // domyślnie: cały zasięg
+          if (best) { hitX = best.x - this.face*4; best.takeHit(best.isBoss ? 18 : cfg.dmg, this.face*cfg.kb, true); }
           else for (const b of bottles) {              // zestrzelenie granatu/butelki
             const dx = b.x - this.x;
-            if (!b.dead && dx*this.face>0 && Math.abs(dx)<cfg.reach && Math.abs(b.y-this.y)<14) { b.dead=true; spawnSpark(b.x, b.y-b.z, false); break; }
+            if (!b.dead && dx*this.face>0 && Math.abs(dx)<cfg.reach && Math.abs(b.y-this.y)<14) { b.dead=true; hitX=b.x; spawnSpark(b.x, b.y-b.z, false); break; }
           }
+          spawnTracer(muzX, muzY, hitX);
         } else if (cfg.oneshot) {
           this.oneshotStab(cfg);                       // strzykawka: dobija zwykłego wroga
         } else if (cfg.circular) {
@@ -2861,8 +2875,7 @@ function drawKuter(c, x, y, sc=1) {                          // gdyński kuter r
   pxr(c, -32.5, -12.5, 65, 11, "#2e5a3a");                   // zieleń
   pxr(c, -32.5, -8.4, 65, 2.6, "#e8c12e");                   // żółty pas
   pxr(c, -32.5, -12.5, 65, 1.6, "#3d7a4e");
-  c.fillStyle = "#15130f"; c.beginPath(); c.moveTo(x?0:0,0); c.closePath();
-  c.beginPath(); c.moveTo(33.8,-14); c.lineTo(42,-8); c.lineTo(33.8,0); c.closePath(); c.fill();
+  c.fillStyle = "#15130f"; c.beginPath(); c.moveTo(33.8,-14); c.lineTo(42,-8); c.lineTo(33.8,0); c.closePath(); c.fill();
   c.fillStyle = "#2e5a3a"; c.beginPath(); c.moveTo(33,-12.4); c.lineTo(40,-7.6); c.lineTo(33,-1.6); c.closePath(); c.fill();
   pxr(c, -26, -11.2, 11, 3.6, "#e8e4d8");                    // numer burtowy GDY
   pxr(c, -24.6, -10.2, 1.6, 1.6, "#1c1c1e"); pxr(c, -22.2, -10.2, 1.6, 1.6, "#1c1c1e"); pxr(c, -19.8, -10.2, 1.6, 1.6, "#1c1c1e");
@@ -2888,22 +2901,30 @@ function drawBackgroundBabie(c, camX, t) {                   // Babie Doły: mor
   const cyc = t % 1300;                                      // przelot starego odrzutowca
   if (cyc < 260) { const jx = -60 + cyc*(VW+140)/260; drawJetSilhouette(c, jx, 40 + Math.sin(cyc*0.03)*4, 0.9);
     pxr(c, jx-26, 40, 10, 2, "rgba(180,184,190,0.35)"); }
-  { const off = camX*0.2, tile = 380;                        // bloki + hangar (parallax)
+  // plany od najdalszego: morze (wyżej) → bloki → drzewa → trawa przy ziemi
+  { const off = camX*0.18, tile = 380;                       // bloki + hangar (plan daleki)
     for (let tI=-1; tI<3; tI++) {
       const bx = -((off) % tile) + tI*tile;
-      drawBlok(c, bx,      150, 44, 84, tI*13+3,  "#8a8578");
-      drawBlok(c, bx+58,   150, 62, 54, tI*17+11, "#928c7e");
-      drawBlok(c, bx+134,  150, 40, 96, tI*7+29,  "#847f72");
-      c.fillStyle = "#6e7a64"; c.beginPath(); c.moveTo(bx+196,150); c.quadraticCurveTo(bx+232,104,bx+268,150); c.closePath(); c.fill();
-      pxr(c, bx+224, 128, 16, 22, "#5c6854");                // wrota hangaru
-      drawBlok(c, bx+286,  150, 52, 66, tI*23+5,  "#8e887a");
+      drawBlok(c, bx,      140, 44, 78, tI*13+3,  "#8a8578");
+      drawBlok(c, bx+58,   140, 62, 50, tI*17+11, "#928c7e");
+      drawBlok(c, bx+134,  140, 40, 88, tI*7+29,  "#847f72");
+      c.fillStyle = "#6e7a64"; c.beginPath(); c.moveTo(bx+196,140); c.quadraticCurveTo(bx+232,98,bx+268,140); c.closePath(); c.fill();
+      pxr(c, bx+224, 120, 16, 20, "#5c6854");                // wrota hangaru
+      drawBlok(c, bx+286,  140, 52, 60, tI*23+5,  "#8e887a");
     } }
-  c.fillStyle = "#3d5535";                                   // ściana lasu
+  c.fillStyle = "#3d5535";                                   // pas drzew przed blokami
   { const off = camX*0.42;
     for (let i=0;i<46;i++){ const q=((i*43-off)%(VW+80))-40;
-      c.beginPath(); c.moveTo(q,GROUND_TOP-42+((i*7)%12)); c.lineTo(q+13, GROUND_TOP-70-((i*11)%16)); c.lineTo(q+26, GROUND_TOP-42+((i*5)%10)); c.closePath(); c.fill(); } }
-  pxr(c, 0, GROUND_TOP-44, VW, 44, "rgba(61,85,53,0.35)");
-  pxr(c, 0, GROUND_TOP-4, VW, 4, "#4a5a3a");
+      c.beginPath(); c.moveTo(q, 166+((i*7)%8)); c.lineTo(q+13, 128-((i*11)%16)); c.lineTo(q+26, 166+((i*5)%8)); c.closePath(); c.fill(); } }
+  pxr(c, 0, 158, VW, 10, "rgba(61,85,53,0.45)");
+  { const off = camX*0.62;                                   // trawa — najbliższy plan tła
+    pxr(c, 0, 164, VW, GROUND_TOP-164, "#5a7a44");
+    pxr(c, 0, 164, VW, 2, "#6a8a50");
+    for (let i=0;i<60;i++){ const q=((i*19-off)%(VW+20))-10;
+      pxr(c, q, 166+((i*13)%9), 1.6, 3.5, "#4a6a38"); }
+    for (let i=0;i<14;i++){ const q=((i*71-off)%(VW+20))-10;
+      pxr(c, q, 168+((i*7)%6), 3, 2, "#6e8a4e"); } }
+  pxr(c, 0, GROUND_TOP-3, VW, 3, "#4a5a3a");
   pxr(c, 0, GROUND_TOP, VW, VH-GROUND_TOP, "#8a8474");       // betonowe płyty + piach
   for (let i=0;i<7;i++) pxr(c, ((i*89-camX)% (VW+40))-20, GROUND_TOP+8+(i%4)*11, 26, 1.4, "#7a7466");
   pxr(c, 0, GROUND_TOP, VW, 2, "#6e685c");
@@ -2989,7 +3010,7 @@ const game = {
     this.enemies = []; this.zone = 0; this.camX = 0; this.camLimit = 0;
     this.shake = 0; this.goT = 0; this.t=0; this.bossBar=false; this.paused=false;
     score = 0;
-    bottles.length=0; gibs.length=0; floaters.length=0; bloodPuddles.length=0; sparks.length=0; this.hitstop=0;
+    bottles.length=0; gibs.length=0; floaters.length=0; bloodPuddles.length=0; sparks.length=0; tracers.length=0; this.hitstop=0;
     pickups.length=0; pickups.push(...PICKUP_SPOTS.map(p=>({...p})));
     weapons.length=0;
     for (const w of WEAPON_SPOTS) weapons.push({ x:w.x, y:w.y, kind:w.kind, dur:WEAPON_CFG[w.kind].dur });
@@ -3060,6 +3081,7 @@ const game = {
     for (let i=gibs.length-1;i>=0;i--){ const g=gibs[i]; g.x+=g.vx; g.y+=g.vy; g.vy+=0.12; if(--g.life<=0) gibs.splice(i,1); }
     for (let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.t++; if(f.t>f.life) floaters.splice(i,1); }
     for (let i=sparks.length-1;i>=0;i--){ if (++sparks[i].t > sparks[i].life) sparks.splice(i,1); }
+    for (let i=tracers.length-1;i>=0;i--){ if (++tracers[i].t > tracers[i].life) tracers.splice(i,1); }
 
     // zones + camera
     const fighting = this.enemies.some(e=>!e.dead) || cars.some(k=>k.state==="drive");
@@ -3312,6 +3334,7 @@ function drawPlay(c) {
     pixText(c, f.txt, Math.round(f.x-game.camX), Math.round(f.y - f.t*0.25), 8, f.col);
     c.globalAlpha = 1;
   }
+  for (const tr of tracers) drawTracer(c, tr, game.camX);
   for (const s of sparks) drawSpark(c, s, game.camX);
   if (LV().fg) LV().fg(c, game.camX);
   c.restore();
@@ -3813,6 +3836,7 @@ function drawCRT(c) {
 function tickFX() {
   for (let i=gibs.length-1;i>=0;i--){ const g=gibs[i]; g.x+=g.vx; g.y+=g.vy; g.vy+=0.12; if(--g.life<=0) gibs.splice(i,1); }
   for (let i=sparks.length-1;i>=0;i--){ if (++sparks[i].t > sparks[i].life) sparks.splice(i,1); }
+  for (let i=tracers.length-1;i>=0;i--){ if (++tracers[i].t > tracers[i].life) tracers.splice(i,1); }
   for (let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.t++; if(f.t>f.life) floaters.splice(i,1); }
 }
 function startCh5() {
@@ -3824,9 +3848,18 @@ function startCh5() {
 }
 const CHASE_LEN = 3400;
 function initChase(tries=0) {
-  game.chase = { x:0, y01:0.5, z:0, vz:0, t:0, spd:2.5, tripT:0, tries, gren:[], grenT:150, done:0, boats:[] };
-  let bx = 560;
-  while (bx < CHASE_LEN-460) { game.chase.boats.push({ x:bx }); bx += irnd(430, 640); }
+  game.chase = { x:0, y01:0.5, z:0, vz:0, t:0, spd:2.5, tripT:0, tries, gren:[], grenT:150, done:0, boats:[], duds:[] };
+  let bx = 560, nb = 0;
+  while (bx < CHASE_LEN-460) {
+    game.chase.boats.push({ x:bx, kind: (nb++%3===2) ? "pien" : "kuter" });   // co trzecia przeszkoda: zwalony pień
+    bx += irnd(430, 640);
+  }
+  let dx = 360;                                        // stare granaty wbite w piach
+  while (dx < CHASE_LEN-360) {
+    if (!game.chase.boats.some(b => Math.abs(b.x-dx) < 110))
+      game.chase.duds.push({ x:dx, y01: rnd(0.05, 0.95) });
+    dx += irnd(200, 360);
+  }
   setMusicMode("boss");
 }
 function chaseLaneY(y01) { return 202 + y01*46; }
@@ -3834,18 +3867,33 @@ function updateChase() {
   const r = game.chase; r.t++; tickFX();
   if (game.shake>0) game.shake *= 0.82;
   if (r.done) { r.done++; if (r.done>=110) { game.state="lift"; game.lift={t:0}; } return; }
-  if (r.tripT>0) { if (--r.tripT<=0) initChase(r.tries+1); return; }
+  if (r.tripT>0) {
+    for (const g of r.gren) if (g.air<=0 && g.fuse<=0 && g.boomA>0 && g.boomA<16) g.boomA++;   // dokończ błysk
+    if (--r.tripT<=0) initChase(r.tries+1);
+    return;
+  }
   r.spd = Math.min(3.5, 2.5 + r.t*0.00045);
   pollInput();
   r.y01 = clamp(r.y01 + input.ay*0.05, 0, 1);
-  if ((input.jumpHit || input.punchHit || input.kickHit || input.anyTap) && r.z===0) {
+  if (input.jumpHit && r.z===0) {                      // skok tylko SPACJĄ (W/S to ruch po plaży)
     r.vz = 3.4; beep("square", 300, 620, 0.12, 0.2);
   }
   r.z += r.vz; r.vz -= 0.17; if (r.z<0){ r.z=0; r.vz=0; }
   r.x += r.spd;
-  // kutry — blokują całą plażę, tylko skok
+  // przeszkody w poprzek plaży — tylko skok (pień jest niższy od kutra)
   for (const b of r.boats) {
-    if (Math.abs(b.x - r.x) < 26 && r.z*6 < 34) { chaseTrip(r, "O KUTER!"); return; }
+    const h = b.kind==="pien" ? 18 : 34, w = b.kind==="pien" ? 16 : 26;
+    if (Math.abs(b.x - r.x) < w && r.z*6 < h) { chaseTrip(r, b.kind==="pien" ? "O PIEŃ!" : "O KUTER!"); return; }
+  }
+  // stare granaty w piachu — omiń albo przeskocz
+  for (let i=r.duds.length-1; i>=0; i--) {
+    const d = r.duds[i];
+    if (Math.abs(d.x - r.x) < 10 && Math.abs(chaseLaneY(d.y01) - chaseLaneY(r.y01)) < 12 && r.z*6 < 12) {
+      r.duds.splice(i, 1);
+      r.gren.push({ x:d.x, y01:d.y01, air:0, fuse:0, boomA:1 });    // sam błysk wybuchu
+      game.shake = 6; SFX.boom();
+      chaseTrip(r, "STARY GRANAT!"); return;
+    }
   }
   // granaty zza pleców
   if (--r.grenT <= 0) {
@@ -3898,12 +3946,38 @@ function drawChase(c) {
   pxr(c, 0, 156, VW, 3, "#efe0b4");
   for (let i=0;i<16;i++) pxr(c, ((i*67 + r.x)%(VW+30))-15, 168+(i*13)%92, 14, 1.3, "#cdb98a");
   const W2S = (wx) => 320 - (wx - r.x);
-  // ślady desek pod kutrami + kutry
+  // stare granaty wbite w piach
+  for (const d of r.duds) {
+    const sx = W2S(d.x), gy = chaseLaneY(d.y01);
+    if (sx<-20 || sx>VW+20) continue;
+    pxr(c, sx-4, gy-1.6, 8, 2.6, "#cdb98a");             // kopczyk piachu
+    pxr(c, sx-2.5, gy-5, 5, 4.4, "#3a4229");
+    pxr(c, sx-0.8, gy-6.6, 1.6, 1.8, "#5f6570");
+    if (Math.floor((game.t + d.x)/26)%2) pxr(c, sx-1, gy-8.8, 2, 1.6, "#c94a3a");   // ostrzegawczy błysk
+  }
+  // przeszkody: mur kutrów albo zwalony pień w poprzek plaży
+  const nearBoats = [];
   for (const b of r.boats) {
     const sx = W2S(b.x);
-    if (sx<-70 || sx>VW+70) continue;
-    pxr(c, sx-40, 252, 80, 3, "#b89c6e");
-    drawKuter(c, sx, 250, 1.18);
+    if (sx<-90 || sx>VW+90) continue;
+    if (b.kind==="pien") {
+      // zwalony pień: leży w głąb plaży, korzenie od strony wody
+      pxr(c, sx-9, 200, 18, 58, "#15130f");
+      pxr(c, sx-7.5, 201.5, 15, 55, "#6e5537");
+      pxr(c, sx-7.5, 201.5, 4, 55, "#7d6342");           // blik kory
+      for (let i=0;i<5;i++) pxr(c, sx-7, 208+i*10, 14, 1.4, "#5a462c");
+      c.fillStyle = "#5a462c";                            // karpa z korzeniami
+      c.beginPath(); c.arc(sx, 198, 13, 0, 7); c.fill();
+      c.fillStyle = "#6e5537"; c.beginPath(); c.arc(sx, 198, 9, 0, 7); c.fill();
+      pxr(c, sx-15, 188, 5, 3, "#5a462c"); pxr(c, sx+11, 190, 5, 3, "#5a462c"); pxr(c, sx-2, 183, 3, 5, "#5a462c");
+      pxr(c, sx-13, 258, 26, 3, "#cdb98a");               // piach naniesiony
+      nearBoats.push({sx, kind:"pien"});
+    } else {
+      pxr(c, sx-46, 224, 86, 3, "#b89c6e");               // deski pod kadłubami
+      pxr(c, sx-52, 256, 100, 3, "#b89c6e");
+      drawKuter(c, sx-8, 226, 0.82);                      // kuter w głębi (bliżej wody)
+      nearBoats.push({sx, kind:"kuter"});
+    }
   }
   // granaty
   for (const g of r.gren) {
@@ -3925,17 +3999,20 @@ function drawChase(c) {
       c.beginPath(); c.arc(sx, gy-6, 2+p*10, 0, 7); c.fill();
     }
   }
-  // Franko — bieg w lewo
-  { const py = chaseLaneY(r.y01), pz = r.z*6;
+  // Franko — bieg w lewo (rysowany przed lub za bliższym kutrem, zależnie od pasa i skoku)
+  const drawFranko = () => {
+    const py = chaseLaneY(r.y01), pz = r.z*6;
     drawShadow(c, 320, py, 7*clamp(1-pz/90,0.55,1));
-    const pose = r.tripT>0
-      ? {legs:"down"}
-      : (r.z>0 ? {legs:"jump", armF:"guard", armB:"down", lean:1} 
-               : {legs: Math.floor(r.t/4)%2 ? "walkA" : "walkB", armF:"punch", armB:"sway", lean:2, swing: Math.floor(r.t/4)%2?1:-1});
-    if (r.tripT>0) { c.save(); c.translate(320, py-2); c.scale(-1,1); drawLying(c, PAL.szymek, true); c.restore(); }
-    else drawDude(c, 320, py - pz, -1, pose, PAL.szymek, false, r.t);
-    if (r.z===0 && r.tripT===0 && r.t%5===0) pxr(c, 324+rnd(0,6), py-2, 2, 2, "rgba(205,185,138,0.8)");
-  }
+    if (r.tripT>0) { c.save(); c.translate(320, py-2); c.scale(-1,1); drawLying(c, PAL.szymek, true); c.restore(); return; }
+    const pose = r.z>0 ? {legs:"jump", armF:"guard", armB:"down", lean:1}
+                       : {legs: Math.floor(r.t/4)%2 ? "walkA" : "walkB", armF:"punch", armB:"sway", lean:2, swing: Math.floor(r.t/4)%2?1:-1};
+    drawDude(c, 320, py - pz, -1, pose, PAL.szymek, false, r.t);
+    if (r.z===0 && r.t%5===0) pxr(c, 324+rnd(0,6), py-2, 2, 2, "rgba(205,185,138,0.8)");
+  };
+  const inFront = r.z*6 > 22 || r.y01 > 0.72;          // wysoko w skoku albo na najbliższym pasie
+  if (!inFront) drawFranko();
+  for (const nb of nearBoats) if (nb.kind==="kuter") drawKuter(c, nb.sx+6, 258, 1.32);   // bliższy kadłub — zasłania plażę
+  if (inFront) drawFranko();
   // pogoń — żołnierze przy prawej krawędzi
   for (let i=0;i<4;i++) {
     const sy = 206 + (i*17)%44, sxs = 408 + i*22 + Math.sin((r.t+i*30)*0.1)*4;
@@ -3971,7 +4048,8 @@ function drawChase(c) {
   pixText(c, "← RYBAKÓW", 46, 20, 7, "#e8e4d8");
   pixText(c, "WOJSKO →", VW-44, 20, 7, "#c94a4a");
   if (r.t < 210 && r.tries===0 && !r.done) {
-    pixText(c, "GÓRA/DÓŁ — omijaj granaty · SPACJA — skok przez kutry", VW/2, 42, 8, "#e8e4d8");
+    pixText(c, "W/S — góra i dół plaży · SPACJA — skok przez przeszkody", VW/2, 42, 8, "#e8e4d8");
+    pixText(c, "omijaj granaty — te z powietrza i te w piachu!", VW/2, 54, 8, "#c9c4b2");
   }
   if (r.tripT>0) {
     c.fillStyle = "rgba(140,20,20,"+(0.25+0.2*Math.sin(r.tripT*0.4))+")"; c.fillRect(0,0,VW,VH);
@@ -3985,36 +4063,57 @@ function drawCh5Slide(c) {
   const sky = c.createLinearGradient(0,0,0,150);
   sky.addColorStop(0,"#4a78b8"); sky.addColorStop(1,"#8fb0d4");
   c.fillStyle = sky; c.fillRect(0,0,VW,150);
-  pxr(c, 0, 96, 250, 60, "#2a5288"); pxr(c, 0, 96, 250, 2, "#3a6aa0");   // morze z lewej
-  for (let i=0;i<7;i++) pxr(c, (i*37+t*0.4)%240, 104+(i%4)*10, 10, 1.4, "rgba(232,228,216,0.5)");
-  c.fillStyle = "#d9c08a";                                   // klif: zbocze z prawej góry na plażę
-  c.beginPath(); c.moveTo(VW,26); c.lineTo(VW,VH); c.lineTo(60,VH); c.lineTo(150,236); c.lineTo(430,60); c.lineTo(VW,40); c.closePath(); c.fill();
-  c.fillStyle = "#c4a870";
-  for (let i=0;i<8;i++) pxr(c, 200+i*30, 210-i*20, 5, 14, "#c4a870");
-  c.fillStyle = "#3d5535"; c.beginPath(); c.moveTo(430,60); c.lineTo(VW,40); c.lineTo(VW,26); c.lineTo(424,48); c.closePath(); c.fill();
-  pxr(c, 0, 236, 170, VH-236, "#e2cf9e");                    // plaża na dole
-  // żołnierze na górze klifu — wygrażają
+  pxr(c, 0, 96, VW, 44, "#2a5288"); pxr(c, 0, 96, VW, 2, "#3a6aa0");   // morze na horyzoncie
+  for (let i=0;i<9;i++) pxr(c, (i*57+t*0.4)%VW, 104+(i%4)*9, 10, 1.4, "rgba(232,228,216,0.5)");
+  pxr(c, 0, 140, VW, 96, "#e8d8ac");                         // jasny piach za klifem
+  // klif: zbocze od prawej góry do plaży — plaża zostaje widoczna na całym dole
+  c.fillStyle = "#d9c08a";
+  c.beginPath(); c.moveTo(120, 232); c.lineTo(430, 62); c.lineTo(VW, 46); c.lineTo(VW, 232); c.closePath(); c.fill();
+  c.fillStyle = "#c4a870";                                   // żłobienia zbocza
+  for (let i=0;i<7;i++) {
+    const q = i/7, zx = lerp(150, 420, q), zy = lerp(226, 74, q);
+    pxr(c, zx+8, zy-4, 4, 13, "#c4a870");
+  }
+  c.fillStyle = "#e8d8ac";                                    // osypisko u stóp
+  c.beginPath(); c.moveTo(110, 232); c.lineTo(190, 232); c.lineTo(150, 218); c.closePath(); c.fill();
+  c.fillStyle = "#3d5535";                                    // trawa na koronie
+  c.beginPath(); c.moveTo(424, 60); c.lineTo(VW, 44); c.lineTo(VW, 32); c.lineTo(418, 48); c.closePath(); c.fill();
+  pxr(c, 0, 232, VW, VH-232, "#e2cf9e");                      // PLAŻA — pełna szerokość
+  pxr(c, 0, 232, VW, 3, "#efe0b4");
+  for (let i=0;i<12;i++) pxr(c, (i*43)%VW, 240+(i*11)%26, 13, 1.4, "#cdb98a");
+  pxr(c, 0, 138, 96, 96, "#2a5288");                          // woda dochodzi z lewej
+  pxr(c, 0, 138, 96, 2, "#3a6aa0");
+  c.fillStyle = "rgba(232,228,216,0.75)";
+  for (let i=0;i<5;i++) pxr(c, 60+((t*0.7+i*17)%34), 150+i*17, 22, 2, "rgba(232,228,216,0.75)");
+  // żołnierze na koronie klifu — wygrażają
   for (let i=0;i<4;i++) {
     const p = {legs:"stand", armF:"flail", armB:"guard", lean:-1};
-    drawDude(c, 448+((i*16)%30), 52+(i%2)*6, -1, p, PAL.zolnierz, false, t+i*9);
+    drawDude(c, 442+((i*15)%28), 42+(i%2)*5, -1, p, PAL.zolnierz, false, t+i*9);
   }
-  // Franko: bieg (0-40) → zjazd (40-190) → lądowanie i bieg w lewo (190+)
+  // Franko: bieg do krawędzi (0-40) → zjazd po zboczu (40-190) → lądowanie i bieg w lewo
   if (t < 40) {
-    const p = {legs: Math.floor(t/4)%2 ? "walkA":"walkB", armF:"punch", armB:"sway", lean:2};
-    drawDude(c, 430 - 0, 58, -1, p, PAL.szymek, false, t);
-    pixText(c, "W NOGI!", 404, 30, 9, "#e8c15a");
+    const fx = 470 - t*1.15;
+    const p = {legs: Math.floor(t/4)%2 ? "walkA":"walkB", armF:"punch", armB:"sway", lean:2,
+               swing: Math.floor(t/4)%2 ? 1 : -1};
+    drawDude(c, fx, 56, -1, p, PAL.szymek, false, t);
+    pixText(c, "W NOGI!", 396, 26, 9, "#e8c15a");
   } else if (t < 190) {
     const p = clamp((t-40)/150, 0, 1);
-    const fx = lerp(414, 158, p), fy = lerp(66, 232, p);
-    c.save(); c.translate(fx, fy); c.rotate(0.55); c.scale(-1,1);
-    drawDude(c, 0, 0, 1, {legs:"kick", armF:"flail", armB:"guard", lean:-2}, PAL.szymek, false, t);
+    const fx = lerp(424, 138, p), fy = lerp(66, 228, p);      // wzdłuż krawędzi zbocza
+    c.save(); c.translate(fx, fy);
+    c.rotate(0.34 + Math.sin(t*0.18)*0.05);                   // surfuje na piachu, odchylony
+    drawDude(c, 0, 0, -1, {legs:"kick", armF:"flail", armB:"guard", lean:-1.5}, PAL.szymek, false, t);
     c.restore();
-    if (t%3===0) gibs.push({x:fx+6, y:fy, vx:rnd(0.2,0.9), vy:rnd(-0.8,-0.2), col:"#cdb98a", life:irnd(8,16), sz:irnd(1,3)});
-    pixText(c, "aaaAAAAA!", fx+26, fy-30, 8, "#e8e4d8");
+    if (t%2===0) gibs.push({x:fx+8, y:fy-2, vx:rnd(0.3,1.2), vy:rnd(-1.2,-0.3), col:"#cdb98a", life:irnd(8,16), sz:irnd(1,3)});
+    pixText(c, "aaaAAAAA!", fx+32, fy-34, 8, "#e8e4d8");
+  } else if (t < 206) {
+    if (t===190) for (let i=0;i<7;i++) gibs.push({x:138+rnd(-7,7), y:240, vx:rnd(-0.9,0.9), vy:rnd(-1.5,-0.4), col:"#cdb98a", life:irnd(10,18), sz:irnd(1,3)});
+    drawDude(c, 138, 246, -1, {legs:"knee", armF:"guard", armB:"down", lean:1}, PAL.szymek, false, t);   // przysiad
   } else {
-    const fx = 150 - (t-190)*1.9;
-    const p = {legs: Math.floor(t/4)%2 ? "walkA":"walkB", armF:"punch", armB:"sway", lean:2};
-    if (fx > -20) drawDude(c, fx, 246, -1, p, PAL.szymek, false, t);
+    const fx = 138 - (t-206)*1.9;
+    const p = {legs: Math.floor(t/4)%2 ? "walkA":"walkB", armF:"punch", armB:"sway", lean:2,
+               swing: Math.floor(t/4)%2 ? 1 : -1};
+    if (fx > -20) drawDude(c, fx, 248, -1, p, PAL.szymek, false, t);
   }
   for (const g of gibs) pxr(c, g.x, g.y, g.sz, g.sz, g.col);
   pixText(c, "BABIE DOŁY — KLIF", VW/2, 16, 8, "#e8e4d8");
@@ -4024,27 +4123,38 @@ function drawLift(c) {
   const sky = c.createLinearGradient(0,0,0,150);
   sky.addColorStop(0,"#4a78b8"); sky.addColorStop(1,"#8fb0d4");
   c.fillStyle = sky; c.fillRect(0,0,VW,150);
-  pxr(c, 0, 96, 200, 60, "#2a5288"); pxr(c, 0, 96, 200, 2, "#3a6aa0");
-  c.fillStyle = "#d9c08a";                                   // klif z prawej
-  c.beginPath(); c.moveTo(200,VH); c.moveTo(VW,30); c.lineTo(VW,VH); c.lineTo(200,VH); c.lineTo(320,64); c.lineTo(VW,44); c.closePath(); c.fill();
-  c.fillStyle = "#3d5535"; c.beginPath(); c.moveTo(320,64); c.lineTo(VW,44); c.lineTo(VW,30); c.lineTo(314,52); c.closePath(); c.fill();
-  pxr(c, 0, 240, 220, VH-240, "#e2cf9e");                    // plaża
-  c.strokeStyle = "#4a3a28"; c.lineWidth = 2.6;              // szyny
-  c.beginPath(); c.moveTo(214, 252); c.lineTo(330, 66); c.stroke();
-  c.beginPath(); c.moveTo(228, 252); c.lineTo(344, 66); c.stroke();
-  for (let i=0;i<8;i++) { const q=i/8; pxr(c, lerp(214,330,q)+2, lerp(252,66,q), 13, 2, "#6e5537"); }
-  const px0 = lerp(216, 332, p), py0 = lerp(248, 62, p);      // platforma jedzie
-  pxr(c, px0-4, py0, 30, 5, "#6e5537");
-  pxr(c, px0-4, py0-13, 3, 13, "#6e5537"); pxr(c, px0+23, py0-13, 3, 13, "#6e5537");
-  drawDude(c, px0+11, py0, -1, {legs:"stand", armF:"guard", armB:"down"}, PAL.szymek, false, t);
-  pxr(c, 300, 180, 3, 60, "#8f8a80");                        // znak przy szynach
-  pxr(c, 288, 166, 56, 18, "#15130f"); pxr(c, 289.5, 167.5, 53, 15, "#2e5a3a");
-  pixText(c, "RYBAKÓW", 316, 177, 8, "#e8e4d8");
+  pxr(c, 0, 96, 210, 58, "#2a5288"); pxr(c, 0, 96, 210, 2, "#3a6aa0");
+  for (let i=0;i<6;i++) pxr(c, (i*37+t*0.3)%200, 104+(i%4)*10, 10, 1.4, "rgba(232,228,216,0.5)");
+  pxr(c, 0, 240, 240, VH-240, "#e2cf9e");                    // plaża
+  for (let i=0;i<6;i++) pxr(c, (i*41)%230, 248+(i*7)%18, 12, 1.3, "#cdb98a");
+  c.fillStyle = "#d9c08a";                                   // klif — jedna czysta bryła
+  c.beginPath(); c.moveTo(222, VH); c.lineTo(334, 62); c.lineTo(VW, 42); c.lineTo(VW, VH); c.closePath(); c.fill();
+  c.fillStyle = "#c4a870";                                   // żłobienia w piachu klifu
+  for (let i=0;i<6;i++) pxr(c, 268+i*32, 220-i*28, 5, 16, "#c4a870");
+  c.fillStyle = "#3d5535";                                   // trawa na koronie
+  c.beginPath(); c.moveTo(334, 62); c.lineTo(VW, 42); c.lineTo(VW, 30); c.lineTo(328, 50); c.closePath(); c.fill();
+  c.strokeStyle = "#4a3a28"; c.lineWidth = 2.6;              // szyny wzdłuż zbocza
+  c.beginPath(); c.moveTo(218, 250); c.lineTo(330, 66); c.stroke();
+  c.beginPath(); c.moveTo(232, 250); c.lineTo(344, 66); c.stroke();
+  for (let i=0;i<9;i++) { const q=i/9; pxr(c, lerp(218,330,q)+1, lerp(250,66,q)-1, 15, 2.4, "#6e5537"); }  // podkłady
+  pxr(c, 190, 196, 3, 48, "#8f8a80");                        // znak przy dole
+  pxr(c, 168, 182, 56, 18, "#15130f"); pxr(c, 169.5, 183.5, 53, 15, "#2e5a3a");
+  pixText(c, "RYBAKÓW", 196, 193, 8, "#e8e4d8");
+  // platforma jedzie po szynach; lina do góry
+  const px0 = lerp(212, 324, p), py0 = lerp(247, 63, p);
+  c.strokeStyle = "#33363b"; c.lineWidth = 1.4;
+  c.beginPath(); c.moveTo(px0+14, py0-3); c.lineTo(336, 58); c.stroke();
+  pxr(c, px0-3, py0, 32, 5, "#15130f");
+  pxr(c, px0-2, py0+0.8, 30, 3.4, "#6e5537");
+  pxr(c, px0-2, py0-12, 2.6, 13, "#6e5537"); pxr(c, px0+25, py0-12, 2.6, 13, "#6e5537");
+  pxr(c, px0-2, py0-12, 29.6, 2, "#8a6a42");                 // barierka
+  const bob = Math.floor(t/16)%2 ? 0.5 : 0;
+  drawDude(c, px0+13, py0-1, -1, {legs:"stand", armF:"guard", armB:"down", dy:bob}, PAL.szymek, false, t);
   for (let i=0;i<5;i++) {                                    // wściekłe wojsko zostaje na dole
     const pz = {legs:"stand", armF:"flail", armB:"flail", lean:-1.4};
-    drawDude(c, 150+i*24, 250+(i%2)*6, 1, pz, PAL.zolnierz, false, t+i*11);
+    drawDude(c, 66+i*26, 250+(i%2)*7, 1, pz, PAL.zolnierz, false, t+i*11);
   }
-  if (Math.floor(t/9)%2) pixText(c, "!!!", 208, 216, 10, "#c94a4a");
+  if (Math.floor(t/9)%2) pixText(c, "!!!", 178, 222, 10, "#c94a4a");
   pixText(c, "WYCIĄG RYBACKI", VW/2, 16, 8, "#e8e4d8");
 }
 function drawCh5Outro(c) {
@@ -4198,7 +4308,7 @@ function stepGame() {
     }
   } else if (game.state==="ch5slide") {
     game.slide.t++; tickFX();
-    if (game.slide.t>=252) { initChase(0); game.state="chase"; }
+    if (game.slide.t>=300) { initChase(0); game.state="chase"; }
   } else if (game.state==="chase") {
     if (!game.paused) updateChase();
   } else if (game.state==="lift") {

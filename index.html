@@ -74,10 +74,9 @@ cx.imageSmoothingEnabled = false;
 
 function fit() {
   const ww = window.innerWidth, wh = window.innerHeight;
-  let s = Math.min(ww / VW, wh / VH);
-  if (s >= 1) s = Math.floor(s);        // integer scaling
-  cv.style.width  = Math.floor(VW * s) + "px";
-  cv.style.height = Math.floor(VH * s) + "px";
+  const s = Math.min(ww / VW, wh / VH);  // pełne dopasowanie — także ułamkowe (telefony)
+  cv.style.width  = (VW * s) + "px";
+  cv.style.height = (VH * s) + "px";
 }
 window.addEventListener("resize", fit);
 window.addEventListener("orientationchange", () => setTimeout(fit, 250));
@@ -157,6 +156,7 @@ const touch = {
   stickId:null, sx:0, sy:0, dx:0, dy:0, active:false,
   btnA:{ id:null, down:false },   // PIĘŚĆ
   btnB:{ id:null, down:false },   // KOP
+  btnC:{ id:null, down:false },   // SKOK
 };
 function cssToGame(t) {
   const r = cv.getBoundingClientRect();
@@ -164,8 +164,9 @@ function cssToGame(t) {
 }
 function btnRects() {
   return {
-    A:{ x:VW-46, y:VH-52, r:20 },
-    B:{ x:VW-92, y:VH-34, r:16 },
+    A:{ x:VW-36, y:VH-64, r:24 },     // PIĘŚĆ
+    B:{ x:VW-92, y:VH-36, r:24 },     // KOP — teraz duży jak pięść
+    C:{ x:VW-36, y:VH-16, r:14 },     // SKOK
   };
 }
 function inCircle(p,c){ const dx=p.x-c.x, dy=p.y-c.y; return dx*dx+dy*dy <= c.r*c.r*1.7; }
@@ -183,6 +184,9 @@ cv.addEventListener("touchstart", e => {
     }
     if (inCircle(p,B.B) && touch.btnB.id===null) {
       touch.btnB.id=t.identifier; touch.btnB.down=true; input.kickHit=true; continue;
+    }
+    if (inCircle(p,B.C) && touch.btnC.id===null) {
+      touch.btnC.id=t.identifier; touch.btnC.down=true; input.jumpHit=true; continue;
     }
     if (p.x < VW*0.55 && touch.stickId===null) {
       touch.stickId=t.identifier; touch.sx=p.x; touch.sy=p.y; touch.dx=0; touch.dy=0; touch.active=true;
@@ -210,6 +214,7 @@ function touchEnd(e){
     if (t.identifier===touch.stickId){ touch.stickId=null; touch.active=false; touch.dx=0; touch.dy=0; }
     if (t.identifier===touch.btnA.id){ touch.btnA.id=null; touch.btnA.down=false; }
     if (t.identifier===touch.btnB.id){ touch.btnB.id=null; touch.btnB.down=false; }
+    if (t.identifier===touch.btnC.id){ touch.btnC.id=null; touch.btnC.down=false; }
   }
 }
 cv.addEventListener("touchend", touchEnd, {passive:false});
@@ -3484,9 +3489,12 @@ function drawTouchUI(c) {
   c.beginPath(); c.arc(B.A.x, B.A.y, B.A.r, 0, 7); c.fill();
   c.fillStyle = touch.btnB.down ? "#e8c15a" : "#5a6a7d";
   c.beginPath(); c.arc(B.B.x, B.B.y, B.B.r, 0, 7); c.fill();
+  c.fillStyle = touch.btnC.down ? "#e8c15a" : "#4a7a5a";
+  c.beginPath(); c.arc(B.C.x, B.C.y, B.C.r, 0, 7); c.fill();
   c.globalAlpha = 0.9;
-  pixText(c, "PIĘŚĆ", B.A.x, B.A.y+3, 7, "#17191d", "center", false);
-  pixText(c, "KOP", B.B.x, B.B.y+3, 7, "#17191d", "center", false);
+  pixText(c, "PIĘŚĆ", B.A.x, B.A.y+3, 8, "#17191d", "center", false);
+  pixText(c, "KOP", B.B.x, B.B.y+3, 8, "#17191d", "center", false);
+  pixText(c, "SKOK", B.C.x, B.C.y+2.5, 6, "#17191d", "center", false);
   c.restore();
 }
 
@@ -4252,6 +4260,7 @@ function drawChase(c) {
     pixText(c, "OD POCZĄTKU PLAŻY...", VW/2, 142, 9, "#c9c4b2");
   }
   if (r.done) pixText(c, "WYCIĄG RYBAKÓW!", VW/2, 60, 12, "#e8c15a");
+  drawTouchUI(c);
 }
 function drawCh5Slide(c) {
   const t = game.slide.t;

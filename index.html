@@ -3529,14 +3529,14 @@ function drawWiezowiec(c, x, y, sc=1) { // punktowiec na skarpie, jak przy Stola
   pxr(c, 8, -132, 12, 6, "#b8ae8e"); pxr(c, 26, -131, 2.6, 5, "#8a8f96");
   c.restore();
 }
-function drawSplash(c) {                      // okładka gry
+function drawSplash(c) {                      // okładka gry — na pełną szerokość
   c.fillStyle = "#101018"; c.fillRect(0, 0, VW, VH);
   if (introImg.complete && introImg.naturalWidth) {
-    const sc = VH / introImg.naturalHeight, w = introImg.naturalWidth * sc;
+    const sh = introImg.naturalHeight * (VW / introImg.naturalWidth);
+    const oy = clamp(-sh*0.05, VH - sh, 0);   // tniemy trochę góry (logo zostaje) i więcej dołu
     c.imageSmoothingEnabled = true;
-    c.drawImage(introImg, (VW - w) / 2, 0, w, VH);
+    c.drawImage(introImg, 0, oy, VW, sh);
     c.imageSmoothingEnabled = false;
-    pxr(c, (VW-w)/2 - 2, 0, 2, VH, "#33363b"); pxr(c, (VW+w)/2, 0, 2, VH, "#33363b");
   }
   pxr(c, 0, VH-22, VW, 22, "rgba(13,12,10,0.55)");
   if (Math.floor(game.t/22)%2) pixText(c, "▶ DOWOLNY KLAWISZ", VW/2, VH-8, 10, "#e8c15a");

@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#23262b">
+<link rel="manifest" href='data:application/manifest+json,%7B%22name%22%3A%20%22OB%C5%81U%C5%BBE%20%2791%22%2C%20%22short_name%22%3A%20%22OB%C5%81U%C5%BBE%20%2791%22%2C%20%22display%22%3A%20%22fullscreen%22%2C%20%22orientation%22%3A%20%22landscape%22%2C%20%22background_color%22%3A%20%22%23101018%22%2C%20%22theme_color%22%3A%20%22%23101018%22%2C%20%22start_url%22%3A%20%22.%22%7D'>
 <title>OBŁUŻE '91 — Spacer po dzielni czyli Franko z Obłuża</title>
 <link rel="manifest" href='data:application/manifest+json,{"name":"OBŁUŻE 91","short_name":"OBŁUŻE 91","display":"fullscreen","orientation":"landscape","background_color":"%2323262b","theme_color":"%2323262b","start_url":"."}'>
 <style>
@@ -25,9 +26,20 @@
     image-rendering:crisp-edges;
     display:block;
   }
+#fsBtn { position:fixed; top:8px; right:8px; z-index:9;
+  width:40px; height:40px; border:2px solid rgba(232,228,216,0.5); border-radius:6px;
+  background:rgba(13,12,10,0.55); color:#e8e4d8; font:20px monospace; line-height:36px; text-align:center;
+  display:none; user-select:none; -webkit-user-select:none; }
+@media (pointer:coarse) { #fsBtn { display:block; } }
+:fullscreen #fsBtn, :-webkit-full-screen #fsBtn { display:none; }
+#iosHint { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:9;
+  background:rgba(13,12,10,0.92); color:#e8e4d8; font:12px monospace; padding:10px 14px;
+  border:1px solid #5f6570; border-radius:8px; display:none; max-width:88vw; text-align:center; }
 </style>
 </head>
 <body>
+<div id="fsBtn">⛶</div>
+<div id="iosHint">Pełny ekran na iPhone: <b>Udostępnij → Do ekranu początkowego</b>,<br>potem uruchom grę z ikonki.</div>
 <div id="wrap"><canvas id="game"></canvas></div>
 <script>
 "use strict";
@@ -105,9 +117,25 @@ window.addEventListener("keydown", e => {
 });
 function togglePause(){ if (game.state==="play"){ game.paused = !game.paused;
   if (AC){ if (game.paused) AC.suspend(); else AC.resume(); } } }
+const fsBtn = document.getElementById("fsBtn");
+const iosHint = document.getElementById("iosHint");
+if (fsBtn) fsBtn.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  const el = document.documentElement;
+  if (el.requestFullscreen || el.webkitRequestFullscreen) {
+    toggleFullscreen();
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(()=>{});
+  } else if (iosHint) {                       // iPhone: API niedostępne — podpowiedz A2HS
+    iosHint.style.display = "block";
+    setTimeout(() => { iosHint.style.display = "none"; }, 6000);
+  }
+});
 function toggleFullscreen(){
   const el = document.getElementById("wrap");
-  if (!document.fullscreenElement) { if (el.requestFullscreen) el.requestFullscreen(); }
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
   else if (document.exitFullscreen) document.exitFullscreen();
 }
 window.addEventListener("keyup", e => { keys[e.code] = false; });

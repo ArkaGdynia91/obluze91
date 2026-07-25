@@ -15,7 +15,7 @@
   html,body {
     width:100%; height:100%; overflow:hidden;
     background:#17191d;
-    touch-action:none;
+    touch-action:none; overscroll-behavior:none;
     -webkit-user-select:none; user-select:none;
     -webkit-touch-callout:none;
     overscroll-behavior:none;
@@ -188,7 +188,7 @@ cv.addEventListener("touchstart", e => {
     if (inCircle(p,B.C) && touch.btnC.id===null) {
       touch.btnC.id=t.identifier; touch.btnC.down=true; input.jumpHit=true; continue;
     }
-    if (p.x < VW*0.55 && touch.stickId===null) {
+    if (touch.stickId===null && !inCircle(p,B.A) && !inCircle(p,B.B) && !inCircle(p,B.C)) {
       touch.stickId=t.identifier; touch.sx=p.x; touch.sy=p.y; touch.dx=0; touch.dy=0; touch.active=true;
     }
   }
@@ -1764,7 +1764,7 @@ class Player extends Fighter {
         if (e.dead || e.isBoss || e.noGrab) continue;
         if (e.state==="down"||e.state==="launch"||e.state==="thrown"||e.state==="grabbed"||e.state==="hit") continue;
         const dx = e.x - this.x;
-        if (Math.abs(dx)<12 && Math.abs(e.y-this.y)<7 && dx*mx>0) {
+        if (Math.abs(dx)>3.5 && Math.abs(dx)<12 && Math.abs(e.y-this.y)<7 && dx*mx>0) {
           this.grabbing=e; this.grabT=110; this.grabHits=0; this.state="grab";
           this.face = dx>0?1:-1;
           e.state="grabbed"; e.kvx=0; e.atkT=0; e.windT=undefined; e.pendA=null;

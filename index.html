@@ -215,6 +215,10 @@ const EN = {
   "Wychodzisz z powrotem na ulicę...":"You step back out onto the street...", "ale Kwadrat już wie, gdzie jesteś.":"but Kwadrat already knows where you are.",
   "▶ MENU":"▶ MENU", "GARAŻE — KNYSZYŃSKA":"GARAGES — KNYSZYŃSKA",
   "1 · GRAJ DALEJ":"1 · RESUME",
+  "KURIER OBŁUŻA":"THE OBŁUŻE COURIER", "ZADARŁ SUTANNĘ":"HITCHED UP HIS CASSOCK", "I KOPNĄŁ!":"AND KICKED!",
+  "GDYNIA · 1991 · CENA 2000 ZŁ":"GDYNIA · 1991 · PRICE 2000 ZŁ", "WYDANIE NADZWYCZAJNE":"SPECIAL EDITION",
+  "Proboszcz w akcji pod kościołem. Fot. archiwum":"The parish priest in action outside the church. Photo: archive",
+  "Bójka pod kościołem na Obłużu":"Brawl outside the church in Obłuże", "WRACAJ TU!!!":"GET BACK HERE!!!",
   "SPECJAL CIĘ OSŁONIŁ!":"THE SPECJAL SAVED YOU!", "O KŁODĘ!":"TRIPPED ON A LOG!", "O OPONY!":"TRIPPED ON TYRES!", "O ŁAWKĘ!":"HIT THE BENCH!",
   "O PIJAKA!":"TRIPPED OVER A DRUNK!", "O KOSZ!":"HIT THE BIN!", "GAŁĄŹ!":"BRANCH!", "PORĘCZ!":"HANDRAIL!", "W PARAWAN!":"INTO A WINDBREAK!",
   "W SIATKĘ!":"INTO THE NET!", "ZAMEK Z PIASKU!":"SANDCASTLE!", "PO PLAŻOWICZU!":"OVER A SUNBATHER!", "MEWA!":"SEAGULL!", "WYWROTKA!":"WIPEOUT!",
@@ -223,7 +227,7 @@ const EN = {
   "UNIK!":"DODGED!", "ŁAP GO!":"GRAB HIM!", "ODEPCHNIĘTY!":"SHOVED OFF!", "ZŁAPALI ZA KURTKĘ!":"THEY GRABBED YOUR JACKET!",
   "SPECJAL":"SPECJAL", "ODEPCHNIJ":"SHOVE", "SCHYL":"DUCK", "Z! ODEPCHNIJ!":"Z! SHOVE HIM!", "◀ ↓ SCHYL SIĘ":"◀ ↓ DUCK", "◀ ↑ SKACZ":"◀ ↑ JUMP",
   "GODZINY PRZYJĘĆ!":"VISITING HOURS!", "PRZYCHODNIA":"CLINIC", "META":"FINISH", "DYSTANS DO TŁUMU":"LEAD ON THE MOB", "DYSTANS DO WOJSKA":"LEAD ON THE ARMY",
-  "UCIEKŁEŚ!":"YOU GOT AWAY!", "↓ ŚLIZG":"↓ SLIDE", "FALA! ↓":"WAVE! ↓", "EJ!":"OI!", "RYBAKÓW":"RYBAKÓW",
+  "UCIEKŁEŚ!":"YOU GOT AWAY!", "hhh...":"hhh...", "↓ ŚLIZG":"↓ SLIDE", "FALA! ↓":"WAVE! ↓", "EJ!":"OI!", "RYBAKÓW":"RYBAKÓW",
   "SKOK: SPACJA / ↑ · SCHYL: ↓ / X · ODEPCHNIJ: Z":"JUMP: SPACE / ↑ · DUCK: ↓ / X · SHOVE: Z",
   "potknięcia skracają dystans — butelki i oranżada go odzyskują":"stumbles cut your lead — bottles and orangeade win it back",
   "SKOK: SPACJA / ↑ / SKOK  ·  SCHYL: ↓ / X / KOP  ·  ODEPCHNIJ: Z / PIĘŚĆ":"JUMP: SPACE / ↑ / JUMP  ·  DUCK: ↓ / X / KICK  ·  SHOVE: Z / PUNCH",
@@ -252,6 +256,7 @@ const EN = {
   "M — muzyka wł./wył.":"M — music on/off",
 };
 const EN_RULES = [
+  [/^BUTELKI: (\d+)  ·  PREMIA (\d+)$/, (m) => "BOTTLES: " + m[1] + "  ·  BONUS " + m[2]],
   [/^7 · REKORDY  (.*)$/, (m) => "7 · HIGH SCORES  " + m[1]],
   [/^PUNKTY (.*)$/, (m) => "SCORE " + m[1]],
   [/^PUNKTY: (.*)$/, (m) => "SCORE: " + m[1]],
@@ -947,8 +952,12 @@ function drawDude(c, X, Y, face, pose, pal, big=false, tick=0) {
 
   if (pose.legs === "down") { drawLying(c, pal); c.restore(); return; }
 
-  drawArm(c, pose.armB, shoY, pal, true, lean, null, sw, pose.extB, tick);
+  const tilt = pose.tilt || 0;
+  const tiltOn = () => { if (!tilt) return false; c.save(); c.translate(0, hipY*U); c.rotate(tilt); c.translate(0, -hipY*U); return true; };
+  if (tiltOn()) { drawArm(c, pose.armB, shoY, pal, true, lean, null, sw, pose.extB, tick); c.restore(); }
+  else drawArm(c, pose.armB, shoY, pal, true, lean, null, sw, pose.extB, tick);
   drawLeg(c, pose.legs, "back", hipY, pal, pose.kext, pose);
+  const tTorso = tiltOn();
 
   // ---- tułów ----
   c.save(); c.translate(lean*U, 0);
@@ -989,6 +998,7 @@ function drawDude(c, X, Y, face, pose, pal, big=false, tick=0) {
     px(c, -1.6, shoY+4.2, 3.2, 0.8, "#2c3040"); px(c, 0.4, shoY+5, 1.1, 1.1, "#c9c4b2");
   }
   c.restore();
+  if (tTorso) c.restore();
 
   drawLeg(c, pose.legs, "front", hipY, pal, pose.kext, pose);
   if (pal.dress) {
@@ -1000,6 +1010,7 @@ function drawDude(c, X, Y, face, pose, pal, big=false, tick=0) {
   }
 
   // ---- głowa ----
+  const tHead = tiltOn();
   c.save(); c.translate(lean*1.6*U, 0);
   if (pal.burakHead) {
     px(c, -3.4, headY-0.6, 6.8, headH+1.2, OUT);
@@ -1016,6 +1027,7 @@ function drawDude(c, X, Y, face, pose, pal, big=false, tick=0) {
   c.restore();
 
   drawArm(c, pose.armF, shoY, pal, false, lean, pose.weap, sw, pose.ext, tick);
+  if (tHead) c.restore();
   c.restore();
 }
 
@@ -1054,7 +1066,7 @@ function drawArm(c, kind, shoY, pal, back, lean, weap, swing=0, ext, tick=0) {
   const sx = back ? -3 : 1;
   const sw = (swing||0) * (back ? -0.9 : 0.9);        // wymach ręki w chodzie
   const IKK = { down:1, sway:1, guard:1, punch:1, punch2:1, windup:1, upper:1, grabH:1, flail:1, throw:1, swing:1,
-                pocket:1, hip:1, cross:1, behind:1, wide:1, bottle:1, drink:1, bag:1, attention:1, wswingA:1 };
+                pocket:1, hip:1, cross:1, behind:1, wide:1, bottle:1, drink:1, bag:1, attention:1, wswingA:1, pump:1 };
   if (IKK[kind] || !kind) {
     const bw = (pal.b || BODY0).w;
     const S = [back ? -(bw-2.1) : (bw-2.3), shoY + 1.5];  // bark
@@ -1085,9 +1097,11 @@ function drawArm(c, kind, shoY, pal, back, lean, weap, swing=0, ext, tick=0) {
       case "bag":    t = [0.5, 6.9]; break;                               // siatka z zakupami
       case "attention": t = [0.1, 7.3]; break;                            // na baczność
       case "wswingA": t = [Math.cos(ext)*6.9, Math.sin(ext)*6.9]; break;  // zamach bronią po łuku
+      case "pump": { const q = (sw/0.9 + 1)/2; t = [lerp(-2.4, 3.0, q), lerp(4.8, 1.7, q)]; break; }   // ręce zgięte jak u biegacza
       default:       t = [0.35, 7.1];
     }
-    const pk = (kind === "windup" || kind === "behind") ? (a, b) => a[0] < b[0] ? a : b      // łokieć w tył
+    const pk = (kind === "pump") ? (sw >= 0 ? (a, b) => a[1] > b[1] ? a : b : (a, b) => a[0] < b[0] ? a : b)
+             : (kind === "windup" || kind === "behind") ? (a, b) => a[0] < b[0] ? a : b      // łokieć w tył
              : (kind === "hip" || kind === "cross" || kind === "wide") ? (a, b) => a[0] > b[0] ? a : b   // łokieć na zewnątrz
              : (a, b) => a[1] > b[1] ? a : b;                                                // łokieć w dół
     const r = ik2(t[0], t[1], ARM_U, ARM_F, pk);
@@ -1214,6 +1228,15 @@ function drawLeg(c, kind, which, hipY, pal, kext, pose) {
     case "stance": t = back ? [-1.7, G] : [1.7, G]; break;
     case "crouch": t = back ? [-2.1, G] : [2.0, G]; break;
     case "walk":   t = walkAt(P.wp || 0); break;
+    case "run": {                                          // bieg: podpór → odbicie → pięta pod pośladek → wyrzut kolana
+      const S = P.stride || 3.2, ph = (((P.wp || 0) + (back ? 0.5 : 0)) % 1 + 1) % 1;
+      const K = [[0, S, 0], [0.33, -S*0.8, 0], [0.55, -S*0.9, -4.6], [0.8, S*0.8, -3.4], [1, S, 0]];
+      let f = [S, 0];
+      for (let i = 0; i < K.length - 1; i++) if (ph <= K[i+1][0]) { const q = (ph - K[i][0])/(K[i+1][0] - K[i][0]), e = q*q*(3 - 2*q);
+        f = [lerp(K[i][1], K[i+1][1], e), lerp(K[i][2], K[i+1][2], e)]; break; }
+      t = [f[0] + 0.3, G + f[1]]; break;
+    }
+    case "slide":  t = back ? [2.6, G - 0.1] : [LT + LS - 0.25, G - 0.2]; break;   // ślizg: noga prosto przed siebie, druga podwinięta
     case "walkA":  t = walkAt(0); break;
     case "walkB":  t = walkAt(0.5); break;
     case "pass":   t = walkAt(0.25); break;
@@ -1234,7 +1257,7 @@ function drawLeg(c, kind, which, hipY, pal, kext, pose) {
   const grounded = !air && A[1] >= hipY + G - 0.15;
   // stopa: płasko na ziemi, w powietrzu prostopadle do goleni
   let fx = 1, fy = 0;
-  const flatFoot = kind !== "kick" && kind !== "knee" && kind !== "jump";
+  const flatFoot = kind !== "kick" && kind !== "knee" && kind !== "jump" && kind !== "slide";
   if (!grounded && flatFoot) { const lift = (hipY + G) - A[1]; fx = 1; fy = clamp(lift*0.12, 0, 0.35); }   // w kroku stopa prawie płasko, palce lekko w dół
   else if (!grounded) { const L = Math.hypot(A[0]-K[0], A[1]-K[1]) || 1, sx = (A[0]-K[0])/L, sy = (A[1]-K[1])/L; fx = sy; fy = -sx; }
   const T0 = [A[0] - fx*0.9, A[1] - fy*0.9], T1 = [A[0] + fx*2.4, A[1] + fy*2.4];
@@ -4142,6 +4165,12 @@ const game = {
   update() {
     this.t++;
     if (this.state!=="play") return;
+    if (this.headline) {                                   // gazeta na cały ekran — gra stoi
+      const h = this.headline; h.t++;
+      if (h.t === 30) { SFX.thud(); this.shake = 4; }
+      if (h.t >= h.dur || (h.t > 60 && input.anyTap)) this.headline = null;
+      return;
+    }
     if (this.hitstop>0) {                 // freeze frame — cios "siada"
       this.hitstop--;
       if (this.shake>0) this.shake *= 0.82;
@@ -4620,6 +4649,54 @@ function drawNightLight(c, camX) {                 // noc: przyciemnienie + plam
   c.restore();
 }
 
+// ---------- nagłówek gazety (Proboszcz) ----------
+function fitText(c, txt, x, y, maxW, size, col) {          // tłumaczy i zmniejsza czcionkę, żeby się zmieścił
+  txt = tr(txt); let sz = size;
+  c.font = "bold " + sz + "px monospace";
+  while (c.measureText(txt).width > maxW && sz > 8) { sz--; c.font = "bold " + sz + "px monospace"; }
+  c.textAlign = "center"; c.fillStyle = col; c.fillText(txt, x, y);
+}
+function drawHeadline(c, h) {
+  const t = h.t, IN = 34, OUT0 = h.dur - 22;
+  let sc = 1, rot = -0.035, a = 1;
+  if (t < IN) { const e = 1 - Math.pow(1 - t/IN, 3); sc = lerp(0.04, 1, e); rot = -0.035 + (1 - e)*Math.PI*5; }
+  else if (t > OUT0) { const q = (t - OUT0)/22; sc = 1 + q*0.5; a = 1 - q; }
+  c.fillStyle = "rgba(8,8,10," + (0.55*Math.min(1, t/12)*a).toFixed(2) + ")"; c.fillRect(0, 0, VW, VH);
+  c.save(); c.globalAlpha = a; c.translate(VW/2, VH/2); c.rotate(rot); c.scale(sc, sc);
+  const W = 440, H = 234, x0 = -W/2, y0 = -H/2;
+  c.fillStyle = "rgba(0,0,0,0.45)"; c.fillRect(x0 + 6, y0 + 7, W, H);
+  c.fillStyle = "#efe8d4"; c.fillRect(x0, y0, W, H);
+  c.fillStyle = "rgba(120,100,60,0.08)"; for (let i = 0; i < 30; i++) c.fillRect(x0 + hash(i*3.1)*W, y0 + hash(i*7.7)*H, 2, 2);   // plamki starego papieru
+  // winieta
+  fitText(c, "KURIER OBŁUŻA", 0, y0 + 28, W - 40, 26, "#1a1814");
+  c.fillStyle = "#1a1814"; c.fillRect(x0 + 14, y0 + 35, W - 28, 2); c.fillRect(x0 + 14, y0 + 48, W - 28, 1);
+  c.font = "6px monospace"; c.textAlign = "left"; c.fillText(tr("GDYNIA · 1991 · CENA 2000 ZŁ"), x0 + 16, y0 + 45);
+  c.textAlign = "right"; c.fillText(tr("WYDANIE NADZWYCZAJNE"), x0 + W - 16, y0 + 45);
+  // nagłówek
+  fitText(c, "ZADARŁ SUTANNĘ", 0, y0 + 84, W - 30, 36, "#b8231f");
+  fitText(c, "I KOPNĄŁ!", 0, y0 + 122, W - 30, 40, "#1a1814");
+  c.fillStyle = "#1a1814"; c.fillRect(x0 + 14, y0 + 132, W - 28, 1.5);
+  // zdjęcie: proboszcz w locie
+  const px0 = x0 + 16, py0 = y0 + 140;
+  c.fillStyle = "#9a958a"; c.fillRect(px0, py0, 150, 82);
+  c.save(); c.beginPath(); c.rect(px0, py0, 150, 82); c.clip();
+  drawDude(c, px0 + 70, py0 + 78, 1, { legs:"kick", kext:1, armF:"guard", armB:"punch", lean:-1, tilt:-0.2 }, PAL.proboszcz, 1.1, 0);
+  c.fillStyle = "rgba(60,58,52,0.35)"; c.fillRect(px0, py0, 150, 82);
+  c.fillStyle = "rgba(20,20,20,0.18)"; for (let yy = 0; yy < 82; yy += 3) for (let xx = (yy/3)%2 ? 0 : 1.5; xx < 150; xx += 3) c.fillRect(px0 + xx, py0 + yy, 1, 1);   // raster
+  c.restore();
+  c.strokeStyle = "#1a1814"; c.lineWidth = 1; c.strokeRect(px0, py0, 150, 82);
+  c.font = "5px monospace"; c.textAlign = "left"; c.fillStyle = "#3a3630"; c.fillText(tr("Proboszcz w akcji pod kościołem. Fot. archiwum"), px0, py0 + 89);
+  // kolumny tekstu
+  for (let col = 0; col < 2; col++) for (let ln = 0; ln < 13; ln++) {
+    const lx = x0 + 182 + col*128, ly = y0 + 142 + ln*6.4, lw = 116 - (hash(col*17 + ln*3.3) > 0.82 ? 40 : 0);
+    c.fillStyle = "#6a655a"; c.fillRect(lx, ly, lw, 2.2);
+  }
+  c.font = "bold 7px monospace"; c.textAlign = "left"; c.fillStyle = "#1a1814";
+  c.fillText(tr("Bójka pod kościołem na Obłużu"), x0 + 182, y0 + 140);
+  c.restore();
+  if (t > 60 && Math.floor(game.t/18)%2) pixText(c, "▶", VW - 16, VH - 10, 9, "#e8e4d8");
+}
+
 function drawPlay(c) {
   const shx = game.shake>0.4 ? rnd(-game.shake, game.shake) : 0;
   const shy = game.shake>0.4 ? rnd(-game.shake, game.shake)*0.5 : 0;
@@ -4673,6 +4750,7 @@ function drawPlay(c) {
   c.restore();
   drawHUD(c);
   drawTouchUI(c);
+  if (game.headline) drawHeadline(c, game.headline);
 }
 
 // ---------- screens ----------
@@ -4911,7 +4989,7 @@ function runnerStep(R) {                              // wspólna fizyka, sterow
   if (game.shake > 0) game.shake *= 0.82;
   if (R.msgT > 0) R.msgT--;
   if (R.caught) { R.caught++; return; }
-  if (R.done) { R.done++; R.x += R.spd*0.6; R.walkT += 2; return; }
+  if (R.done) { R.done++; const v = Math.max(0, R.spd*(1 - R.done/40)); R.x += v; R.walkT += v > 0.3 ? 2 : 0; return; }
   pollInput();
   const up = input.ay < -0.5;
   const duckHeld = R.lanes ? (input.kick || touch.btnB.down) : (input.ay > 0.5 || input.kick || touch.btnB.down);
@@ -4954,7 +5032,7 @@ function updateRun() {
   const R = game.run;
   runnerStep(R);
   if (R.caught) { if (R.caught > 90) { game.fromRun = true; game.state = "gameover"; game.endT = 0; setMusicMode("street"); } return; }
-  if (R.done) { if (R.done > 120) { game.state = "interlude"; game.endT = 0; setMusicMode("street"); } return; }
+  if (R.done) { if (R.done > 210) { game.state = "interlude"; game.endT = 0; setMusicMode("street"); } return; }
   const D = RN_DIFF[difficulty];
   // rzuty z tłumu: kaczka na wysokości głowy (schyl się) / strzykawka nisko (skacz)
   if (R.t > 150 && --R.projT <= 0) {
@@ -4987,7 +5065,7 @@ function updateRun() {
       else if (g.t > 46) { g.st = "fall"; g.t = 0; runnerStumble(R, "ZŁAPALI ZA KURTKĘ!"); }
     } else { g.x -= 1.5; if (g.t > 50) R.grab = null; }
   }
-  if (R.x >= RUN_LEN) { R.done = 1; score += 500 + R.got*10; SFX.go(); }
+  if (R.x >= RUN_LEN - 70) { R.done = 1; score += 500 + R.got*10; SFX.go(); R.grab = null; R.proj = []; }
 }
 function drawRunObstacle(c, o, sx, gy) {
   const s = (x, y, w, h, col) => pxr(c, sx + x, gy + y, w, h, col);
@@ -5026,24 +5104,38 @@ function drawBottleItem(c, x, y) {                       // pusta butelka do sku
   pxr(c, x-1.2, y-9.6, 0.8, 6.4, "#a8683a"); pxr(c, x-1.8, y-7, 3.6, 2.2, "#e8d8b0");
   if (Math.floor((game.t + x)/20)%2) pxr(c, x+1.6, y-12, 1.4, 1.4, "rgba(255,255,255,0.8)");
 }
-function drawRunner(c, x, y, R, facing, pal) {            // Franko w biegu / skoku / ślizgu / potknięciu
-  const ph = (R.walkT/16) % 1;
+function runPose(ph, extra) {                             // wspólna poza biegu (gracz, tłum, żołnierze)
+  return Object.assign({ legs:"run", wp:ph, stride:3.3, armF:"pump", armB:"pump", swing:-Math.cos(ph*6.283), lean:1.6,
+    dy: 1.1 + 1.1*Math.cos(4*Math.PI*(ph - 0.17)) }, extra || {});
+}
+function drawRunner(c, x, y, R, facing, pal) {            // Franko w biegu / skoku / ślizgu / potknięciu / zwycięstwie
+  const ph = (R.walkT/18) % 1, legH = (pal.b || BODY0).leg;
   if (R.caught) { c.save(); c.translate(x, y-2); if (facing < 0) c.scale(-1, 1); c.scale(RK, RK); drawLying(c, pal, true); c.restore(); return; }
-  if (R.stumbleT > 20) { drawDude(c, x, y, facing, { legs:"crouch", armF:"flail", armB:"flail", lean:-2, dy:4, hurt:true }, pal, false, R.t); return; }
-  if (R.ducking) {                                         // ślizg pod przeszkodą: ciało odchylone nisko do tyłu
-    if (R.inv > 0 && Math.floor(R.t/4)%2) c.globalAlpha = 0.5;
-    c.save(); c.translate(x, y); c.rotate(-facing*0.95);
-    drawDude(c, 0, 0, facing, { legs:"stand", armF:"guard", armB:"flail", lean:0.6, dy:1 }, pal, false, R.t);
-    c.restore(); c.globalAlpha = 1;
-    if (R.t % 3 === 0) spawnDust(R.x + (facing > 0 ? 4 : 0), y, 1);
+  if (R.done > 40) {                                       // meta: pięść w górę
+    drawDude(c, x, y, facing, { legs:"stance", armF:"upper", armB:"guard", lean:-0.4, dy: Math.floor(R.done/14)%2 ? 0.6 : 0 }, pal, false, R.t);
     return;
   }
-  const pose = R.z > 0 ? { legs:"jump", armF:"guard", armB:"down", lean:1.2 }
-             : { legs:"walk", wp:ph, stride:3.4, lift:2.6, armF:"sway", armB:"sway", swing:-Math.cos(ph*6.283), swingAmp:1.5, lean:2.0 };
+  if (R.stumbleT > 14) {                                   // potknięcie: leci do przodu, ręce w górę
+    const q = (34 - R.stumbleT)/20;
+    drawDude(c, x, y, facing, { legs:"walkB", armF:"flail", armB:"flail", tilt:0.25 + q*0.5, dy:2 + q*4, hurt:true }, pal, false, R.t);
+    return;
+  }
   if (R.inv > 0 && Math.floor(R.t/4)%2) c.globalAlpha = 0.5;
+  if (R.ducking) {                                         // ślizg: biodra przy ziemi, noga do przodu, odchylony na ręce
+    drawDude(c, x, y, facing, { legs:"slide", armF:"throw", armB:"down", tilt:-0.85, dy:(legH - 3.0)*U }, pal, false, R.t);
+    c.globalAlpha = 1;
+    if (R.t % 2 === 0) spawnDust(R.x + (facing > 0 ? 18 : -18)*0 + facing*16, y, 1);
+    return;
+  }
+  const pose = R.z > 0 ? { legs:"jump", armF:"pump", armB:"pump", swing:0.8, lean:1.2 } : runPose(ph);
   drawDude(c, x, y - R.z, facing, pose, pal, false, R.t);
   c.globalAlpha = 1;
-  if (R.shield) { c.strokeStyle = "rgba(232,193,90," + (0.4 + 0.3*Math.sin(R.t*0.2)).toFixed(2) + ")"; c.lineWidth = 1.2; c.beginPath(); c.ellipse(x, y - R.z - 30, 18, 34, 0, 0, 7); c.stroke(); }
+  if (R.shield) {                                          // Specjal nad głową zamiast obwódki
+    const by = y - R.z - 74 + Math.sin(R.t*0.12)*2;
+    pxr(c, x-2.6, by, 5.2, 10, OUT); pxr(c, x-2, by+0.6, 4, 8.8, "#4a2a18"); pxr(c, x-1.2, by-3, 2.4, 3.4, "#4a2a18");
+    pxr(c, x-1.2, by-3.6, 2.4, 1, "#c9a227"); pxr(c, x-2, by+3.6, 4, 3, "#8f1e1e"); pxr(c, x-1.5, by+4.3, 3, 1, "#c9a227");
+    if (Math.floor(R.t/8)%2) { c.fillStyle = "rgba(255,240,180,0.9)"; c.fillRect(x+3, by-2, 2, 2); }
+  }
 }
 function drawRunnerHUD(c, R, label, fromTxt, toTxt, prog, gapLbl) {
   pxr(c, 0, 0, VW, 30, "rgba(13,12,10,0.72)");
@@ -5133,19 +5225,22 @@ function drawRun(c) {
   // przeszkody
   for (const o of R.obs) { const sx = o.x - R.x + 140; if (sx > -40 && sx < VW+40) drawRunObstacle(c, o, sx, runGY(o.x, R)); }
   // tłum za plecami — im mniejszy dystans, tym bliżej
-  const crowdX = 140 - 34 - R.gap*1.0;
+  const crowdX = R.done ? (R.crowdX0 ?? (R.crowdX0 = 140 - 34 - R.gap*1.0)) - Math.min(R.done, 60)*0.4 : 140 - 34 - R.gap*1.0;
   for (let i = 0; i < 8; i++) {
     const ex = crowdX - i*15 + Math.sin(t*0.1 + i)*3, wx = R.x + (ex - 140);
     if (ex < -30) continue;
     const ey = runGY(wx, R) + (i%3)*1.4, ph = ((R.walkT + i*7)/14) % 1;
     drawShadow(c, ex, ey+1, 6);
-    drawDude(c, ex, ey, 1, { legs:"walk", wp:ph, stride:3.2, lift:2.4, armF: i%2 ? "punch2" : "flail", armB:"sway", swing:-Math.cos(ph*6.28), lean:1.9 }, PAL[RUN_CROWD[i%RUN_CROWD.length]], false, t + i*9);
+    const pose = R.done > 30 ? { legs:"stand", armF:"hip", armB:"hip", tilt:0.55, dy:2 + (Math.floor((t + i*7)/10)%2) }       // zdyszani
+               : runPose(ph, i%3 === 0 ? { armF:"grabH", swing:0 } : null);
+    drawDude(c, ex, ey, 1, pose, PAL[RUN_CROWD[i%RUN_CROWD.length]], false, t + i*9);
+    if (R.done > 30 && i < 3 && Math.floor((t + i*20)/30)%2) pixText(c, "hhh...", ex + 4, ey - 70, 7, "#c9c4b2");
   }
   if (t % 150 === 20 && crowdX > -10) say(Math.max(20, crowdX), 130, ["ŁAPAĆ GO!","STÓJ!","NA SOR Z NIM!","GODZINY PRZYJĘĆ!"][irnd(0,3)], "#ff6a5a", 60);
   // łapacz
   if (R.grab) { const g = R.grab, sx = g.x - R.x + 140, gy = runGY(g.x, R);
     if (g.st === "fall") { c.save(); c.translate(sx, gy); c.scale(-RK, RK); drawLying(c, PAL[g.pal], true); c.restore(); }
-    else { const ph = (R.walkT/12) % 1; drawDude(c, sx, gy, 1, { legs:"walk", wp:ph, stride:3.4, lift:2.4, armF: g.st === "reach" ? "grabH" : "punch", armB:"sway", lean:2.2 }, PAL[g.pal], false, t);
+    else { const ph = (R.walkT/14) % 1; drawDude(c, sx, gy, 1, runPose(ph, g.st === "reach" ? { armF:"grabH", armB:"grabH", swing:0, lean:2.2 } : null), PAL[g.pal], false, t);
       if (g.st === "reach" && Math.floor(t/5)%2) pixText(c, "Z! ODEPCHNIJ!", 140, 96, 12, "#ff6a5a"); } }
   // gracz
   const gy0 = 214;
@@ -5181,7 +5276,10 @@ function drawRun(c) {
   }
   if (R.caught) { c.fillStyle = "rgba(184,53,47," + (0.22 + 0.12*Math.sin(t*0.4)).toFixed(2) + ")"; c.fillRect(0, 0, VW, VH);
     if (Math.floor(t/10)%2) pixText(c, "DOPADLI CIĘ!", VW/2, 110, 18, "#ff6a5a"); }
-  if (R.done) pixText(c, "UCIEKŁEŚ!", VW/2, 110, 20, "#7ec96a");
+  if (R.done) {
+    pixText(c, "UCIEKŁEŚ!", VW/2, 104, 22, "#7ec96a");
+    if (R.done > 30) pixText(c, "BUTELKI: " + R.got + "  ·  PREMIA " + (500 + R.got*10), VW/2, 124, 9, "#e8e4d8");
+  }
   drawRunTouch(c);
 }
 function drawRunIntro(c) {
@@ -5351,8 +5449,9 @@ function drawChase(c) {
     const sy = 206 + (i*17)%44, sxs = front + i*20 + Math.sin((t + i*30)*0.1)*4;
     if (sxs > VW + 30) continue;
     const throwing = R.proj.length && R.proj[R.proj.length-1].air > 30 && i === 1, ph = ((R.walkT + i*9)/14) % 1;
-    const pose = throwing ? { legs:"stand", armF:"throw", armB:"down", lean:-1 }
-                          : { legs:"walk", wp:ph, stride:3.2, lift:2.6, armF:"sway", armB:"sway", swing:-Math.cos(ph*6.28), swingAmp:1.6, lean:2 };
+    const pose = R.done ? { legs:"stance", armF:"flail", armB:"flail", lean:-0.8, jx: (t + i*5)%6 < 3 ? 0.6 : -0.6 }   // wygrażają
+               : throwing ? { legs:"stand", armF:"throw", armB:"down", lean:-1 }
+                          : runPose(ph);
     drawShadow(c, sxs, sy, 6.5); drawDude(c, sxs, sy, -1, pose, PAL.zolnierz, false, t + i*13);
   }
   // meta: RYBAKÓW + wyciąg
@@ -5374,7 +5473,8 @@ function drawChase(c) {
   }
   if (R.caught) { c.fillStyle = "rgba(140,20,20," + (0.25 + 0.2*Math.sin(t*0.4)).toFixed(2) + ")"; c.fillRect(0, 0, VW, VH);
     pixText(c, "DOPADLI CIĘ!", VW/2, 120, 18, "#e8e4d8"); pixText(c, "OD POCZĄTKU PLAŻY...", VW/2, 142, 9, "#c9c4b2"); }
-  if (R.done) pixText(c, "WYCIĄG RYBAKÓW!", VW/2, 60, 12, "#e8c15a");
+  if (R.done) { pixText(c, "WYCIĄG RYBAKÓW!", VW/2, 60, 12, "#e8c15a");
+    if (Math.floor(t/20)%2) pixText(c, "WRACAJ TU!!!", VW - 70, 160, 9, "#ff6a5a"); }
   drawRunTouch(c);
 }
 
@@ -6815,7 +6915,7 @@ function stepGame() {
       game.talkIdx++;
       if (game.talkIdx >= game.talk.length) {
         game.state = "play";
-        if (game.pendingBanner) { game.bannerText = game.pendingBanner; game.bannerT = 160; game.pendingBanner = null; }
+        if (game.pendingBanner) { game.headline = { t:0, dur:230 }; game.pendingBanner = null; SFX.bossRoar(); }
       }
     }
   } else if (game.state==="ch5intro") {
